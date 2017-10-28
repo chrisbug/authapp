@@ -5,7 +5,6 @@ import { AppComponent } from './app.component';
 import {routing, appRoutingProviders} from './app.routing';
 import { HomeComponent } from './home/home.component';
 import { ProfileComponent } from './profile/profile.component';
-import {AUTH_PROVIDERS} from 'angular2-jwt';
 import {AuthService} from './auth.service';
 
 @NgModule({
@@ -18,7 +17,7 @@ import {AuthService} from './auth.service';
     BrowserModule,
     routing
   ],
-  providers: [appRoutingProviders, AUTH_PROVIDERS],
+  providers: [appRoutingProviders, AuthService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

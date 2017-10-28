@@ -1,40 +1,63 @@
 import { Injectable } from '@angular/core';
-import { tokenNotExpired } from 'angular2-jwt';
-
-declare var Auth0Lock: any;
+import { Router } from '@angular/router';
+import 'rxjs/add/operator/filter';
+import * as auth0 from 'auth0-js';
 
 @Injectable()
 export class AuthService {
-  //Configure Auth0
-  lock = new Auth0Lock('F2bfGMQQb350bKVo0qnxT9Cm5U9Z7ytl','cbuggyauth.eu.auth0.com', {});
-  constructor() {
-    this.lock.on("authenticated", (authResult: any) => {
-      this.lock.getProfile(authResult.idToken, function(error:any, profile: any){
-        if(error){
-          throw new Error(error);
-        }
 
-        //Set Profile
-        localStorage.setItem('profile', JSON.stringify(profile));
+  auth0 = new auth0.WebAuth({
+    clientID: 'F2bfGMQQb350bKVo0qnxT9Cm5U9Z7ytl',
+    domain: 'cbuggyauth.eu.auth0.com',
+    responseType: 'token id_token',
+    audience: 'https://cbuggyauth.eu.auth0.com/userinfo',
+    redirectUri: 'http://localhost:4200/callback',
+    scope: 'openid'
+  });
 
-        //Set token
-        localStorage.setItem('id_token', authResult.idToken);
-      })
-    })
-   }
-   public login() {
-     // Call the show method to display the widget
-     this.lock.show();
-   }
+  constructor(public router: Router){}
 
-   public authenticated(){
-     return tokenNotExpired();
-   }
+  public login(): void {
+    this.auth0.authorize();
+  }
 
-   public logout() {
-     //Remove info from localStorage
-     localStorage.removeItem('id_token');
-     localStorage.removeItem('profile');
-   }
 
+  public handleAuthentication(): void {
+    this.auth0.parseHash((err, authResult) => {
+      if (authResult && authResult.accessToken && authResult.idToken) {
+        window.location.hash = '';
+        this.setSession(authResult);
+        this.router.navigate(['/home']);
+      } else if (err) {
+        this.router.navigate(['/home']);
+        console.log(err);
+        alert(`Error: ${err.error}. Check the console for further details.`);
+      }
+    });
+  }
+
+  private setSession(authResult):void {
+    //Set the time that the access token will expire.
+    const expiresAt = JSON.stringify((authResult.expiresIn * 1000) + new Date().getTime());
+    localStorage.setItem('access_token', authResult.accessToken);
+    localStorage.setItem('id_token', authResult.idToken);
+    localStorage.setItem('expires_at', expiresAt);
+  }
+
+  public logout(): void {
+    // Removes tokens and expiry time from localStorage
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('id_token');
+    localStorage.removeItem('expires_at');
+    //nagivate back to home
+    this.router.navigate(['/']);
+  }
+
+  public isAuthenticated(): boolean {
+    //Check wherater the current time is past the access_token
+    //expiry time
+    let expiresAt = JSON.parse(localStorage.getItem('expires_at'));
+    console.log(expiresAt);
+    return new Date().getTime() < expiresAt;
+  }
 }
